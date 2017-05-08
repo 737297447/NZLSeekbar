@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:nzltext="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context="com.nzl.seekbar.MainActivity">
+
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center">
+
+
+        <TextView
+            android:id="@+id/text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="#ff0000"
+            android:textSize="20sp"
+            />
+
+
+    <com.nzl.seekbar.NZLSeekbar
+        android:id="@+id/seekbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        nzltext:my_seekBar="@mipmap/nzl_seekbar"
+        android:layout_marginTop="10dp"
+        nzltext:grayView="@mipmap/nzl_seekbar_gary"
+        nzltext:blueView="@mipmap/nzl_seekbar_blue"
+        nzltext:leftView="@mipmap/nzl_seekbar_left"
+        android:paddingRight="10dp"
+        android:paddingLeft="20dp"
+        />
+
+    </LinearLayout>
+</LinearLayout>

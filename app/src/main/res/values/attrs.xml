@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="NZLSeekbar">
+        <attr name="my_seekBar" format="dimension"/>
+        <attr name="grayView" format="dimension"/>
+        <attr name="blueView" format="dimension"/>
+        <attr name="leftView" format="dimension"/>
+    </declare-styleable>
+
+
+
+</resources>

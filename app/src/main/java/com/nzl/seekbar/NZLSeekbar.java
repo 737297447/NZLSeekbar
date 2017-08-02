@@ -15,7 +15,7 @@ import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Scroller;
 
-/*/**
+/**
  * Created by longhy on 2017/5/3.
  */
 
@@ -34,9 +34,9 @@ public class NZLSeekbar extends View {
     private DisplayMetrics dm = this.getResources().getDisplayMetrics();
 
     //顶部文字和seekbar的间距
-    private int topPaddingSeekBar = (int)(10 * dm.density);
+    private int topPaddingSeekBar = (int) (10 * dm.density);
     //刻度和文字的间距
-    private int keduPaddingText = (int)(2 * dm.density);
+    private int keduPaddingText = (int) (2 * dm.density);
 
 
     private Rect grayBgRect;
@@ -45,9 +45,13 @@ public class NZLSeekbar extends View {
     private Rect seekbarRect;
 
     //平均每一节的宽度
-    private int oneWidth;
+    private float oneWidth;
+    //右边的不可选择的距离
+    private float oneNoWidth = 0;
 
-    private String[] list = {"500", "600", "700", "800", "900", "1000"};
+
+    private String[] list;
+
     private float[] textWidth;
 
     private Paint mPaint;
@@ -55,15 +59,18 @@ public class NZLSeekbar extends View {
     private int textColor = Color.parseColor("#666666");
 
     //底部文字的大小
-    private int textSize = (int)(12 * dm.density);
+    private int textSize = (int) (10 * dm.density);
     //底部刻度的大小
-    private int textKeduSize = (int)(8 * dm.density);
+    private int textKeduSize = (int) (8 * dm.density);
+
+    private float rightPadding = 10 * dm.density;
+
 
     //顶部的文字和大小
     private String topText;
     private int topTextSize;
-    private int topTextNonalSize = (int)(20 * dm.density);
-    private int topTextBigSize = (int)(30 * dm.density);
+    private int topTextNonalSize = (int) (20 * dm.density);
+    private int topTextBigSize = (int) (30 * dm.density);
     private float topTextWidth;
 
     //最后移动到的x
@@ -74,12 +81,28 @@ public class NZLSeekbar extends View {
      * 当前拖动的x占当前长度 / count的百分比
      * 如果当前count为5,percentage的范围从0~5
      */
-    private float position = list.length - 1;
+    private float position;
+    private float baifenbi = 0;
+
     //seekbar调整后的距离左边
     private float distance;
 
     private Scroller mScroller;
     private boolean isOnMeasure = true;
+
+
+    private int mWidth = 0;
+    private int mHeight = 0;
+
+
+    //当前用户可借的最小钱数
+    private int minMoney = 500;
+    //当前用户可借的最大钱数
+    private int maxMoney = 1000;
+    //当前用户不可借的最大钱数
+    private int maxNoMoney = 6000;
+
+    private float seekBarTrueWidth;
 
 
     public NZLSeekbar(Context context) {
@@ -96,6 +119,8 @@ public class NZLSeekbar extends View {
         if (attr == null)
             return;
 
+        setMaxMoney(maxMoney);
+
         TypedArray a = context.obtainStyledAttributes(attr, R.styleable.NZLSeekbar);
         seekBar = a.getDrawable(R.styleable.NZLSeekbar_my_seekBar);
         grayBgView = a.getDrawable(R.styleable.NZLSeekbar_grayView);
@@ -103,7 +128,6 @@ public class NZLSeekbar extends View {
         blueLeftBgView = a.getDrawable(R.styleable.NZLSeekbar_leftView);
 
         a.recycle();
-
         init();
     }
 
@@ -132,24 +156,95 @@ public class NZLSeekbar extends View {
         topTextSize = topTextNonalSize;
         mPaint.setTextSize(topTextSize);
 
+
+    }
+
+
+    /**
+     * 初始化可用最大值
+     *
+     * @param maxMoney
+     */
+    public void setMaxMoney(int maxMoney) {
+        if (maxMoney <= minMoney)
+            return;
+
+        this.maxMoney = maxMoney;
+        int size = (maxMoney - minMoney) / 100 + 1;
+
+
+        list = new String[size];
+        position = list.length - 1;
+
+
+        for (int i = 0; i < size; i++) {
+            list[i] = minMoney + i * 100 + "";
+        }
+
+        init();
+
+    }
+
+    /**
+     * 初始化不可用最大值
+     *
+     * @param maxNoMoney
+     */
+    public void setMaxNoMoney(int maxNoMoney) {
+
+        if (maxNoMoney <= maxMoney)
+            return;
+        this.maxNoMoney = maxNoMoney;
+
+        init();
+
+    }
+
+
+    /**
+     * 动态改变可用的最大值
+     *
+     * @param maxMoney
+     */
+    public void setChangeMaxMoney(int maxMoney) {
+        if (maxMoney <= minMoney || maxMoney >= maxNoMoney)
+            return;
+
+
+        this.maxMoney = maxMoney;
+        int size = (maxMoney - minMoney) / 100 + 1;
+
+
+        list = new String[size];
+        for (int i = 0; i < size; i++) {
+            list[i] = minMoney + i * 100 + "";
+        }
+
+
+        oneWidth = (seekBarTrueWidth - oneNoWidth) / (list.length - 1);
+
+
+
+        textWidth = new float[list.length];
+        for (int i = 0; i < list.length; i++) {
+            textWidth[i] = mPaint.measureText(list[i].toString());
+        }
+
+        invalidate();
+
     }
 
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        int heightModel = MeasureSpec.getMode(heightMeasureSpec);
 
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        int widthModel = MeasureSpec.getMode(widthMeasureSpec);
 
         if (isOnMeasure) {
-            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-            int heightSize = MeasureSpec.getSize(heightMeasureSpec);
-            int heightModel = MeasureSpec.getMode(heightMeasureSpec);
-
-            int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-            int widthModel = MeasureSpec.getMode(widthMeasureSpec);
-
-            int mWidth;
-            int mHeight;
-
 
             seekWidth = seekBar.getIntrinsicWidth();
             seekHeight = seekBar.getIntrinsicHeight();
@@ -168,16 +263,19 @@ public class NZLSeekbar extends View {
             }
 
 
-            float rightPadding = Math.max(topTextWidth / 2, textWidth[list.length - 1]);
-
-
-            grayBgRect.left = getPaddingLeft();
+            grayBgRect.left = getPaddingLeft() + 5;
             grayBgRect.right = (int) (mWidth - getPaddingRight() - rightPadding);
             grayBgRect.top = mHeight / 2 - grayBgView.getIntrinsicHeight() / 2;
             grayBgRect.bottom = mHeight / 2 + grayBgView.getIntrinsicHeight() / 2;
 
+            seekBarTrueWidth = grayBgRect.right - grayBgRect.left - seekWidth / 2;
 
-            oneWidth = (grayBgRect.right - grayBgRect.left - seekWidth / 2) / (list.length - 1);
+            if (maxNoMoney > maxMoney) {
+                oneNoWidth = seekBarTrueWidth / 5;
+            }
+
+
+            oneWidth = (seekBarTrueWidth - oneNoWidth) / (list.length - 1);
             distance = oneWidth * position + getPaddingLeft();
 
 
@@ -200,6 +298,12 @@ public class NZLSeekbar extends View {
 
 
             setMeasuredDimension(mWidth, mHeight);
+        } else {
+
+            if (mHeight == 0) {
+                mHeight = heightSize;
+            }
+            setMeasuredDimension(widthMeasureSpec, mHeight);
         }
 
     }
@@ -224,57 +328,96 @@ public class NZLSeekbar extends View {
 
 
         mPaint.setColor(textColor);
-        for (int i = 0; i < list.length; i++) {
-            String keduText = "|";
-            mPaint.setTextSize(textKeduSize);
-            float keduWidth = mPaint.measureText(keduText);
+        float keduWidth = 0;
 
+        for (int i = 0; i < list.length; i++) {
+            //String keduText = "|";
+            String keduText = "";
+            if (i == 0 || i == list.length - 1) {
+                keduText = "|";
+            } else {
+                keduText = "";
+            }
+
+
+            mPaint.setTextSize(textKeduSize);
+            keduWidth = mPaint.measureText(keduText);
             float left = seekWidth / 2 + oneWidth * i + getPaddingLeft() - keduWidth / 2;
-            canvas.drawText(keduText, left, seekbarRect.bottom + topPaddingSeekBar, mPaint);
+
+
+//            float trueRangeWidth = seekBarTrueWidth - oneNoWidth + getPaddingLeft();
+
+
+//            if (i == list.length - 1) {
+//                canvas.drawText(keduText, trueRangeWidth - keduWidth / 2, seekbarRect.bottom + topPaddingSeekBar, mPaint);
+//            } else {
+                canvas.drawText(keduText, left, seekbarRect.bottom + topPaddingSeekBar, mPaint);
+//            }
 
 
             mPaint.setTextSize(textSize);
             float textLeft = left + keduWidth / 2 - textWidth[i] / 2;
-            canvas.drawText(list[i], textLeft, seekbarRect.bottom + topPaddingSeekBar + textSize + keduPaddingText, mPaint);
+
+            if (i == 0) {
+                canvas.drawText(minMoney + "", seekWidth / 2  + getPaddingLeft() - mPaint.measureText(minMoney + "") / 2, seekbarRect.bottom + topPaddingSeekBar + textSize + keduPaddingText, mPaint);
+            } else if (i == list.length - 1) {
+                canvas.drawText(maxMoney + "", left + keduWidth / 2 - mPaint.measureText(maxMoney + "") / 2, seekbarRect.bottom + topPaddingSeekBar + textSize + keduPaddingText, mPaint);
+            } else {
+                canvas.drawText("", textLeft, seekbarRect.bottom + topPaddingSeekBar + textSize + keduPaddingText, mPaint);
+            }
+
 
         }
 
-        System.out.println("*********position*********"+position);
-        if (position <= 0.5) {
-            topText = "500";
-            System.out.println("0000");
-        } else if (position > 0.5 && position <= 1.5) {
-            topText = "600";
-            System.out.println("11");
-        } else if (position > 1.5 && position <= 2.5) {
-            topText = "700";
-            System.out.println("22");
-        } else if (position > 2.5 && position <= 3.5) {
-            topText = "800";
-            System.out.println("33");
-        } else if (position > 3.5 && position <= 4.5) {
-            topText = "900";
-            System.out.println("44");
-        } else if (position > 4.5) {
-            topText = "1000";
-            System.out.println("55");
+
+        if (oneNoWidth != 0) {
+            canvas.drawText("|", grayBgRect.right - keduWidth / 2, seekbarRect.bottom + topPaddingSeekBar, mPaint);
+            float maxNoMoneyWidth = mPaint.measureText(maxNoMoney + "");
+            canvas.drawText(maxNoMoney + "", grayBgRect.right - maxNoMoneyWidth / 2, seekbarRect.bottom + topPaddingSeekBar + textSize + keduPaddingText, mPaint);
+        }
+
+
+        if (baifenbi > 0) {
+            int maxNo = Integer.valueOf(maxNoMoney) - Integer.valueOf(maxMoney);
+
+            float i = baifenbi * maxNo;
+
+
+            if (i % 100 != 0) {
+                i = (int) (i / 100) * 100;
+
+            }
+
+
+            topText = 2000 + (int) (i) + "";
+        } else {
+            if (position < list.length - 1 && position >= 0)
+                topText = list[Math.round(position)];
+            else if (position < 0)
+                topText = minMoney + "";
+            else
+                topText = maxMoney + "";
         }
 
 
         mPaint.setTextSize(topTextSize);
-        mPaint.setColor(Color.parseColor("#FF8400"));
+        mPaint.setColor(Color.parseColor("#EB4735"));
         topTextWidth = mPaint.measureText(topText);
         float seekBarCenter = seekbarRect.centerX();
         canvas.drawText(topText, seekBarCenter - topTextWidth / 2, seekbarRect.top - 15, mPaint);
 
         if (mScroller.isFinished()) {
-            Log.d("SeekBar topText", topText + "");
+            // Log.d("SeekBar topText", topText + "");
             if (listener != null)
                 listener.onSeekChange(topText);
         }
 
     }
 
+    private int downX;
+    private int downY;
+    private int moveX;
+    private int moveY;
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
@@ -286,18 +429,23 @@ public class NZLSeekbar extends View {
         int action = event.getActionMasked();
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                downX = (int) event.getX();
+                downY = (int) event.getY();
             case MotionEvent.ACTION_POINTER_DOWN:
                 handleTouchDown(event);
-                System.out.println("*******ACTION_DOWN*******");
                 break;
             case MotionEvent.ACTION_MOVE:
+                moveX = (int) event.getX();
+                moveY = (int) event.getY();
+                if (Math.abs(moveY - downY) > Math.abs(moveX - downX)) {
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                }
                 handleTouchMove(event);
                 break;
             case MotionEvent.ACTION_POINTER_UP:
             case MotionEvent.ACTION_CANCEL:
             case MotionEvent.ACTION_UP:
                 handleTouchUp(event);
-                System.out.println("*******ACTION_UP*******");
                 break;
         }
 
@@ -312,7 +460,8 @@ public class NZLSeekbar extends View {
 
         topTextSize = topTextBigSize;
 
-        position = (lastDownX - seekWidth / 2 - getPaddingLeft()) / (float) oneWidth;
+        position = (lastDownX - seekWidth / 2 - getPaddingLeft()) / oneWidth;
+
 
         seekbarRect.left = lastDownX - seekWidth / 2;
         seekbarRect.right = seekbarRect.left + seekWidth;
@@ -332,10 +481,21 @@ public class NZLSeekbar extends View {
             setPosition(0);
             return;
         }
-        if (lastDownX > grayBgRect.right) {
-            lastDownX = grayBgRect.right;
-            setPosition(list.length - 1);
-            return;
+
+        if (oneNoWidth == 0) {
+            if (lastDownX > grayBgRect.right) {
+                lastDownX = grayBgRect.right;
+                setPosition(list.length - 1);
+                return;
+            }
+
+        } else {
+            if (lastDownX >= grayBgRect.right) {
+                System.out.println("*******yuejie****************");
+                baifenbi = 1;
+                invalidate();
+                return;
+            }
         }
 
 
@@ -344,7 +504,22 @@ public class NZLSeekbar extends View {
         blueBgRect.right = seekbarRect.centerX();
 
 
-        position = (lastDownX - seekWidth / 2 - getPaddingLeft()) / (float) oneWidth;
+        if (lastDownX < grayBgRect.right - oneNoWidth) {
+            position = (lastDownX - seekWidth / 2 - getPaddingLeft()) / oneWidth;
+            baifenbi = 0;
+        } else {
+            position = list.length - 1;
+            baifenbi = (lastDownX - grayBgRect.right + oneNoWidth) /  oneNoWidth;
+        }
+
+        if (listener != null) {
+            if (baifenbi == 0) {
+                listener.onRangeChange(1);
+            } else {
+                listener.onRangeChange(2);
+            }
+        }
+
 
         invalidate();
     }
@@ -355,41 +530,41 @@ public class NZLSeekbar extends View {
         int downX = (int) event.getX();
 
         lastDownX = downX;
-        position = (lastDownX - seekWidth / 2 - getPaddingLeft()) / (float) oneWidth;
+
+
+        if (lastDownX < grayBgRect.right - oneNoWidth) {
+            position = (lastDownX - seekWidth / 2 - getPaddingLeft()) / oneWidth;
+
+        } else {
+            position = list.length - 1;
+
+        }
+
+
+        baifenbi = 0;
+        if (listener != null)
+            listener.onRangeChange(1);
+
 
         if (lastDownX < grayBgRect.left + seekWidth / 2) {
             lastDownX = grayBgRect.left + seekWidth / 2;
             Log.e("SeekBar", "左边超出了");
+            position = 0;
         }
         if (lastDownX > grayBgRect.right) {
             lastDownX = grayBgRect.right;
             Log.e("SeekBar", "右边超出了");
         }
 
-        if (position <= 0.5) {
-            position = 0;
-            distance = getPaddingLeft();
-        } else if (position > 0.5 && position <= 1.5) {
-            position = 1;
-            distance = getPaddingLeft() + oneWidth;
-        } else if (position > 1.5 && position <= 2.5) {
-            position = 2;
-            distance = getPaddingLeft() + oneWidth * 2;
-        } else if (position > 2.5 && position <= 3.5) {
-            position = 3;
-            distance = getPaddingLeft() + oneWidth * 3;
-        } else if (position > 3.5 && position <= 4.5) {
-            position = 4;
-            distance = getPaddingLeft() + oneWidth * 4;
-        } else if (position > 4.5) {
-            position = 5;
-            distance = getPaddingLeft() + oneWidth * 5;
-        }
+
+        position = Math.round(position);
+        distance = getPaddingLeft() + oneWidth * position;
 
 
         if (!mScroller.computeScrollOffset()) {
-            mScroller.startScroll(lastDownX, 0, (int) distance - lastDownX, 0, 500);
+            mScroller.startScroll(lastDownX, 0, (int) distance - lastDownX, 0, minMoney);
         }
+
 
         Log.d("SeekBar position", position + "");
         invalidate();
@@ -401,25 +576,29 @@ public class NZLSeekbar extends View {
     public void computeScroll() {
 
         if (mScroller.computeScrollOffset()) {
-
             final int deltaX = mScroller.getCurrX();
 
-            float destinace = deltaX / (float) oneWidth;
-            System.out.println("*****destinace**"+destinace);
+            float destinace = deltaX /  oneWidth;
 
-            if (destinace < 1) {
-                position = 0;
-            } else if (destinace >= 1 && destinace < 2) {
-                position = 1;
-            } else if (destinace >= 2 && destinace < 3) {
-                position = 2;
-            } else if (destinace >=3 && destinace < 4) {
-                position = 3;
-            } else if (destinace >=4 && destinace < 5) {
-                position = 4;
-            } else if (destinace >= 5) {
-                position = 5;
-            }
+//            if ((grayBgRect.left + seekWidth / 2) <= oneWidth) {
+//
+//                if (destinace - 0.5 > 0)
+//                    position = Math.round(destinace - 0.5);
+//                else
+//                    position = 0;
+//
+//            } else {
+//
+//                if (destinace - 1.5 > 0)
+//                    position = Math.round(destinace - 1.5);
+//                else
+//                    position = 0;
+//
+//            }
+//
+//            if (position >= list.length)
+//                position = list.length - 1;
+
 
             distance = oneWidth * destinace;
 
@@ -439,10 +618,8 @@ public class NZLSeekbar extends View {
      */
 
     public void setPosition(int position) {
-
         if (position < 0 || position > list.length - 1)
             return;
-
         this.position = position;
 
         distance = oneWidth * position + getPaddingLeft();
@@ -451,7 +628,8 @@ public class NZLSeekbar extends View {
         seekbarRect.right = seekbarRect.left + seekWidth;
         blueBgRect.right = seekbarRect.centerX();
 
-        topText = 500 + 100 * position + "";
+        // topText = minMoney + 100 * position + "";
+        topText = minMoney + 100 * position + "";
         if (listener != null)
             listener.onSeekChange(topText);
 
@@ -464,6 +642,10 @@ public class NZLSeekbar extends View {
 
     public interface OnSeekChangeListener {
         void onSeekChange(String changeText);
+
+        //type = 1 ,没有超过maxMoney,type = 2超过maxMoney
+        void onRangeChange(int type);
+
     }
 
     public void setOnSeekChangeListener(OnSeekChangeListener listener) {
@@ -481,6 +663,7 @@ public class NZLSeekbar extends View {
         }
         return false;
     }
+
 
 }
 

@@ -1,4 +1,4 @@
-package com.nzl.seekbar;
+package com.beihui.aixin.view;
 
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -14,6 +14,8 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Scroller;
+
+import com.beihui.aixin.R;
 
 /**
  * Created by longhy on 2017/5/3.
@@ -99,8 +101,9 @@ public class NZLSeekbar extends View {
     private int minMoney = 500;
     //当前用户可借的最大钱数
     private int maxMoney = 1000;
-    //当前用户不可借的最大钱数
-    private int maxNoMoney = 6000;
+    //当前用户不可借的最大钱数,maxNoMoney < maxMoney右边不显示
+    private int maxNoMoney = 500;
+
 
     private float seekBarTrueWidth;
 
@@ -207,15 +210,15 @@ public class NZLSeekbar extends View {
      * @param maxMoney
      */
     public void setChangeMaxMoney(int maxMoney) {
-        if (maxMoney <= minMoney || maxMoney >= maxNoMoney)
+        if (maxMoney <= minMoney)
             return;
-
 
         this.maxMoney = maxMoney;
         int size = (maxMoney - minMoney) / 100 + 1;
 
 
         list = new String[size];
+        position = list.length - 1;
         for (int i = 0; i < size; i++) {
             list[i] = minMoney + i * 100 + "";
         }
@@ -351,7 +354,7 @@ public class NZLSeekbar extends View {
 //            if (i == list.length - 1) {
 //                canvas.drawText(keduText, trueRangeWidth - keduWidth / 2, seekbarRect.bottom + topPaddingSeekBar, mPaint);
 //            } else {
-                canvas.drawText(keduText, left, seekbarRect.bottom + topPaddingSeekBar, mPaint);
+            canvas.drawText(keduText, left, seekbarRect.bottom + topPaddingSeekBar, mPaint);
 //            }
 
 
@@ -666,5 +669,3 @@ public class NZLSeekbar extends View {
 
 
 }
-
-
